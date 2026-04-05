@@ -1,0 +1,672 @@
+<!doctype html>
+<html
+  lang="en"
+  x-data="{ dark: localStorage.getItem('theme') === 'dark' }"
+  :class="{ 'dark': dark }"
+>
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Event Pricing Calculator</title>
+
+    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet" />
+
+    <script>
+      tailwind.config = {
+        darkMode: 'class',
+        theme: {
+          extend: {
+            fontFamily: {
+              sans: ['"DM Sans"', 'sans-serif'],
+              mono: ['"Space Mono"', 'monospace'],
+            },
+            colors: {
+              secondary: {
+                50:  '#f3f5f8',
+                100: '#d7dee6',
+                200: '#b0bac5',
+                300: '#7e8ea0',
+                400: '#5b6678',
+                600: '#2c3543',
+                700: '#1f2631',
+                800: '#131921',
+                900: '#0a0e14',
+              },
+              success: {
+                50:  '#f2fff9',
+                500: '#00cc8e',
+                600: '#009e6d',
+              },
+              warning: { 400: '#f09300' },
+              danger:  { 100: '#ffcdf0', 300: '#ff5dcc', 500: '#d31394' },
+            },
+            boxShadow: {
+              card: '0 2px 12px rgba(0,0,0,0.06)',
+              'card-hover': '0 8px 28px rgba(0,0,0,0.10)',
+              xl: '0 20px 60px rgba(0,0,0,0.15)',
+            },
+            gridTemplateColumns: { layout: '1fr 320px' },
+          },
+        },
+      };
+    </script>
+
+    <style>
+      [x-cloak] { display: none !important; }
+
+      input[type="range"] {
+        -webkit-appearance: none;
+        appearance: none;
+        width: 100%; height: 4px; border-radius: 2px;
+        background: linear-gradient(to right, #00cc8e var(--slider-pct, 50%), #e8ecf1 var(--slider-pct, 50%));
+        outline: none; cursor: pointer;
+      }
+      .dark input[type="range"] {
+        background: linear-gradient(to right, #00cc8e var(--slider-pct, 50%), #2c3543 var(--slider-pct, 50%));
+      }
+      input[type="range"]::-webkit-slider-thumb {
+        -webkit-appearance: none;
+        width: 18px; height: 18px; border-radius: 50%;
+        background: #fff; border: 2px solid #00cc8e;
+        box-shadow: 0 1px 4px rgba(0,201,142,0.3); cursor: grab;
+        transition: transform 0.2s ease, box-shadow 0.2s ease;
+      }
+      .dark input[type="range"]::-webkit-slider-thumb { background: #1f2631; }
+      input[type="range"]::-webkit-slider-thumb:hover {
+        transform: scale(1.2);
+        box-shadow: 0 0 0 4px rgba(0,204,142,0.15);
+      }
+      input[type="range"]::-moz-range-thumb {
+        width: 18px; height: 18px; border-radius: 50%;
+        background: #fff; border: 2px solid #00cc8e;
+        box-shadow: 0 1px 4px rgba(0,201,142,0.3); cursor: grab;
+      }
+      .dark input[type="range"]::-moz-range-thumb { background: #1f2631; }
+
+      @keyframes fadeIn  { from { opacity: 0; } to { opacity: 1; } }
+      @keyframes slideUp { from { opacity: 0; transform: translateY(16px); } to { opacity: 1; transform: translateY(0); } }
+      @keyframes slideIn { from { transform: translateX(100%); } to { transform: translateX(0); } }
+      @keyframes sheetUp { from { transform: translateY(100%); } to { transform: translateY(0); } }
+      @keyframes sectionIn { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: translateY(0); } }
+
+      /* Staggered section load */
+      .section-1 { animation: sectionIn 0.4s ease both; animation-delay: 0.05s; }
+      .section-2 { animation: sectionIn 0.4s ease both; animation-delay: 0.15s; }
+      .section-3 { animation: sectionIn 0.4s ease both; animation-delay: 0.25s; }
+      .section-4 { animation: sectionIn 0.4s ease both; animation-delay: 0.35s; }
+      .section-5 { animation: sectionIn 0.4s ease both; animation-delay: 0.4s; }
+      .sidebar-anim { animation: sectionIn 0.5s ease both; animation-delay: 0.2s; }
+
+      /* Slider tooltip */
+      .slider-wrap { position: relative; }
+      .slider-tooltip {
+        position: absolute;
+        top: -36px;
+        transform: translateX(-50%);
+        background: #0a0e14;
+        color: white;
+        font-family: 'Space Mono', monospace;
+        font-size: 0.72rem;
+        font-weight: 700;
+        padding: 4px 10px;
+        border-radius: 6px;
+        white-space: nowrap;
+        pointer-events: none;
+        opacity: 0;
+        transition: opacity 0.15s ease;
+      }
+      .dark .slider-tooltip { background: white; color: #0a0e14; }
+      .slider-tooltip::after {
+        content: '';
+        position: absolute;
+        top: 100%; left: 50%;
+        transform: translateX(-50%);
+        border: 4px solid transparent;
+        border-top-color: #0a0e14;
+      }
+      .dark .slider-tooltip::after { border-top-color: white; }
+      .slider-wrap:focus-within .slider-tooltip,
+      .slider-wrap:hover .slider-tooltip { opacity: 1; }
+    </style>
+  </head>
+
+  <body
+    x-data="calculator()"
+    x-cloak
+    class="min-h-screen font-sans text-secondary-800 dark:text-secondary-100 bg-white dark:bg-secondary-900 leading-[1.6] antialiased transition-colors duration-300"
+  >
+    <div class="max-w-[1120px] mx-auto px-8 pt-12">
+
+      <!-- Header -->
+      <header class="mb-14">
+        <div class="flex items-end justify-between">
+          <div>
+            <p class="text-xs font-semibold uppercase tracking-[0.15em] text-success-500 mb-3">Pricing tool</p>
+            <h1 class="text-[2.4rem] font-light text-secondary-900 dark:text-white leading-tight tracking-tight">
+              Event Pricing<br><span class="font-semibold">Calculator</span>
+            </h1>
+          </div>
+          <div class="flex items-center gap-3 pb-1">
+            <span class="text-sm text-secondary-400 dark:text-secondary-300 hidden sm:block">
+              <span x-text="'$' + displayTotal.toLocaleString()" class="font-mono font-semibold text-secondary-900 dark:text-white"></span>
+              <span class="ml-1 opacity-60">est.</span>
+            </span>
+            <button
+              class="w-8 h-8 rounded-lg flex items-center justify-center text-secondary-400 dark:text-secondary-300 hover:text-secondary-900 dark:hover:text-white transition-colors cursor-pointer"
+              @click="dark = !dark; localStorage.setItem('theme', dark ? 'dark' : 'light')"
+            ><span x-text="dark ? '☀️' : '🌙'" class="text-base leading-none"></span></button>
+          </div>
+        </div>
+        <div class="mt-6 h-px bg-secondary-100 dark:bg-secondary-700"></div>
+      </header>
+    </div>
+
+    <!-- Step Progress (sticky) -->
+    <div class="sticky top-0 z-30 bg-white/90 dark:bg-secondary-900/90 backdrop-blur-sm border-b border-secondary-100 dark:border-secondary-700 section-1">
+      <div class="max-w-[1120px] mx-auto px-8 py-3 flex items-center gap-0">
+        <template x-for="(step, i) in steps" :key="step.id">
+          <div class="flex items-center">
+            <button
+              class="flex items-center gap-2 cursor-pointer"
+              @click="scrollToStep(step.id)"
+            >
+              <span
+                class="w-5 h-5 rounded-full flex items-center justify-center text-[0.65rem] font-bold transition-all duration-300 flex-shrink-0"
+                :class="activeStep === step.id
+                  ? 'bg-secondary-900 dark:bg-white text-white dark:text-secondary-900 scale-110'
+                  : completedSteps.includes(step.id)
+                    ? 'bg-success-500 text-white'
+                    : 'bg-secondary-100 dark:bg-secondary-700 text-secondary-400 dark:text-secondary-300'"
+              >
+                <span x-show="!completedSteps.includes(step.id) || activeStep === step.id" x-text="i + 1"></span>
+                <span x-show="completedSteps.includes(step.id) && activeStep !== step.id" class="text-[0.55rem]">✓</span>
+              </span>
+              <span
+                class="text-xs font-medium transition-colors duration-200 hidden sm:block"
+                :class="activeStep === step.id ? 'text-secondary-900 dark:text-white' : 'text-secondary-400 dark:text-secondary-300 group-hover:text-secondary-600'"
+                x-text="step.label"
+              ></span>
+            </button>
+            <div x-show="i < steps.length - 1" class="w-6 sm:w-10 h-px mx-2 flex-shrink-0 transition-colors duration-300"
+              :class="completedSteps.includes(steps[i + 1]?.id) || activeStep === steps[i + 1]?.id ? 'bg-success-500/40' : 'bg-secondary-100 dark:bg-secondary-700'"
+            ></div>
+          </div>
+        </template>
+      </div>
+    </div>
+
+    <div class="max-w-[1120px] mx-auto px-8 pb-28 lg:pb-14 pt-10">
+
+      <!-- Main Grid -->
+      <div class="grid grid-cols-1 lg:grid-cols-layout gap-12 items-start">
+
+        <!-- ── MAIN COLUMN ── -->
+        <div class="space-y-10">
+
+          <!-- Attendees -->
+          <section id="attendees" class="section-2 scroll-mt-16">
+            <label class="block text-xs font-semibold uppercase tracking-[0.12em] mb-4 transition-colors duration-300" :class="activeStep === 'attendees' ? 'text-secondary-900 dark:text-white' : 'text-secondary-400 dark:text-secondary-300'">Attendees</label>
+            <div class="flex justify-between items-baseline mb-4">
+              <span class="text-4xl font-light text-secondary-900 dark:text-white font-mono" x-text="attendees.toLocaleString()"></span>
+              <span class="text-sm text-secondary-400 dark:text-secondary-300">up to 5,000</span>
+            </div>
+            <div class="slider-wrap">
+              <div
+                class="slider-tooltip"
+                :style="'left:' + ((attendees - 100) / 4900 * 100) + '%'"
+                x-text="attendees.toLocaleString()"
+              ></div>
+              <input
+                type="range" min="100" max="5000" step="100"
+                x-model.number="attendees"
+                :style="'--slider-pct:' + ((attendees - 100) / 4900 * 100) + '%'"
+              />
+            </div>
+            <div class="flex justify-between mt-2.5 text-[0.7rem] text-secondary-300 dark:text-secondary-600 font-mono">
+              <span>100</span><span>1k</span><span>2k</span><span>3k</span><span>4k</span><span>5k</span>
+            </div>
+          </section>
+
+          <div class="h-[2px] bg-secondary-100 dark:bg-secondary-700 rounded-full"></div>
+
+          <!-- Plan -->
+          <section id="plan" class="section-3">
+            <label class="block text-xs font-semibold uppercase tracking-[0.12em] mb-5 transition-colors duration-300" :class="activeStep === 'plan' ? 'text-secondary-900 dark:text-white' : 'text-secondary-400 dark:text-secondary-300'">Plan</label>
+            <div class="grid grid-cols-2 gap-3">
+              <!-- Premium -->
+              <div
+                class="rounded-2xl p-5 cursor-pointer transition-all duration-200 relative"
+                :class="selectedPlan === 'premium'
+                  ? 'bg-secondary-900 dark:bg-white shadow-card-hover'
+                  : 'bg-secondary-50 dark:bg-secondary-800 hover:shadow-card'"
+                @click="selectedPlan = 'premium'"
+              >
+                <div class="flex items-start justify-between mb-6">
+                  <span
+                    class="text-xs font-semibold uppercase tracking-[0.1em]"
+                    :class="selectedPlan === 'premium' ? 'text-success-500' : 'text-secondary-400 dark:text-secondary-300'"
+                  >Premium</span>
+                  <span x-show="selectedPlan === 'premium'" class="w-5 h-5 rounded-full bg-success-500 flex items-center justify-center text-white text-[0.65rem] font-bold flex-shrink-0">✓</span>
+                </div>
+                <div class="font-mono text-[1.8rem] font-semibold leading-none mb-1"
+                  :class="selectedPlan === 'premium' ? 'text-white dark:text-secondary-900' : 'text-secondary-900 dark:text-white'"
+                >$5,800</div>
+                <div class="text-xs mt-2"
+                  :class="selectedPlan === 'premium' ? 'text-white/60 dark:text-secondary-900/60' : 'text-secondary-400 dark:text-secondary-300'"
+                >Full-featured event platform</div>
+              </div>
+              <!-- Starter -->
+              <div
+                class="rounded-2xl p-5 cursor-pointer transition-all duration-200 relative"
+                :class="selectedPlan === 'starter'
+                  ? 'bg-secondary-900 dark:bg-white shadow-card-hover'
+                  : 'bg-secondary-50 dark:bg-secondary-800 hover:shadow-card'"
+                @click="selectedPlan = 'starter'"
+              >
+                <div class="flex items-start justify-between mb-6">
+                  <span
+                    class="text-xs font-semibold uppercase tracking-[0.1em]"
+                    :class="selectedPlan === 'starter' ? 'text-success-500' : 'text-secondary-400 dark:text-secondary-300'"
+                  >Starter</span>
+                  <span x-show="selectedPlan === 'starter'" class="w-5 h-5 rounded-full bg-success-500 flex items-center justify-center text-white text-[0.65rem] font-bold flex-shrink-0">✓</span>
+                </div>
+                <div class="font-mono text-[1.8rem] font-semibold leading-none mb-1"
+                  :class="selectedPlan === 'starter' ? 'text-white dark:text-secondary-900' : 'text-secondary-900 dark:text-white'"
+                >$2,400</div>
+                <div class="text-xs mt-2"
+                  :class="selectedPlan === 'starter' ? 'text-white/60 dark:text-secondary-900/60' : 'text-secondary-400 dark:text-secondary-300'"
+                >Essential tools for smaller events</div>
+              </div>
+            </div>
+
+            <div class="flex items-center gap-5 mt-4">
+              <button class="text-xs text-secondary-400 dark:text-secondary-300 hover:text-success-500 transition-colors cursor-pointer underline underline-offset-4 decoration-dashed" @click="showComparison = true">Compare plans</button>
+              <button class="text-xs text-secondary-400 dark:text-secondary-300 hover:text-success-500 transition-colors cursor-pointer underline underline-offset-4 decoration-dashed" @click="showFeatures = !showFeatures" x-text="showFeatures ? 'Hide features' : 'See all features'"></button>
+            </div>
+
+            <div x-show="showFeatures" x-transition class="mt-5 overflow-x-auto">
+              <table class="w-full text-sm border-collapse">
+                <thead>
+                  <tr>
+                    <th class="text-left text-[0.7rem] font-semibold uppercase tracking-[0.1em] text-secondary-400 dark:text-secondary-300 py-2 border-b border-secondary-100 dark:border-secondary-700 pr-4">Feature</th>
+                    <th class="text-center text-[0.7rem] font-semibold uppercase tracking-[0.1em] text-secondary-400 dark:text-secondary-300 py-2 border-b border-secondary-100 dark:border-secondary-700 w-24">Premium</th>
+                    <th class="text-center text-[0.7rem] font-semibold uppercase tracking-[0.1em] text-secondary-400 dark:text-secondary-300 py-2 border-b border-secondary-100 dark:border-secondary-700 w-24">Starter</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <template x-for="f in features" :key="f.name">
+                    <tr class="border-b border-secondary-50 dark:border-secondary-800">
+                      <td class="py-2.5 pr-4 font-light" x-text="f.name"></td>
+                      <td class="py-2.5 text-center">
+                        <span x-show="f.premium === true"  class="text-success-500 font-bold">✓</span>
+                        <span x-show="f.premium === false" class="text-secondary-200 dark:text-secondary-700">—</span>
+                        <span x-show="typeof f.premium === 'string'" class="text-sm text-secondary-400 dark:text-secondary-300" x-text="f.premium"></span>
+                      </td>
+                      <td class="py-2.5 text-center">
+                        <span x-show="f.starter === true"  class="text-success-500 font-bold">✓</span>
+                        <span x-show="f.starter === false" class="text-secondary-200 dark:text-secondary-700">—</span>
+                        <span x-show="typeof f.starter === 'string'" class="text-sm text-secondary-400 dark:text-secondary-300" x-text="f.starter"></span>
+                      </td>
+                    </tr>
+                  </template>
+                </tbody>
+              </table>
+            </div>
+          </section>
+
+          <div class="h-[2px] bg-secondary-100 dark:bg-secondary-700 rounded-full"></div>
+
+          <!-- Add-ons -->
+          <section id="addons" class="section-4">
+            <label class="block text-xs font-semibold uppercase tracking-[0.12em] mb-5 transition-colors duration-300" :class="activeStep === 'addons' ? 'text-secondary-900 dark:text-white' : 'text-secondary-400 dark:text-secondary-300'">Add-ons</label>
+            <div class="space-y-1">
+              <template x-for="addon in addons" :key="addon.id">
+                <div
+                  class="flex items-center justify-between py-3 px-4 rounded-xl cursor-pointer transition-all duration-200 border-l-2"
+                  :class="addon.selected ? 'bg-secondary-50 dark:bg-secondary-800 border-success-500' : 'border-transparent hover:bg-secondary-50 dark:hover:bg-secondary-800'"
+                  @click="addon.selected = !addon.selected"
+                >
+                  <div class="flex items-center gap-3.5">
+                    <div
+                      class="w-4 h-4 rounded flex items-center justify-center flex-shrink-0 transition-all duration-200 border"
+                      :class="addon.selected ? 'bg-success-500 border-success-500 text-white' : 'border-secondary-200 dark:border-secondary-600'"
+                    >
+                      <template x-if="addon.selected"><span class="text-[0.6rem] font-bold leading-none">✓</span></template>
+                    </div>
+                    <span class="text-sm font-light" x-text="addon.name"></span>
+                  </div>
+                  <span class="font-mono text-sm transition-colors duration-200" :class="addon.selected ? 'text-success-500 font-semibold' : 'text-secondary-400 dark:text-secondary-300'" x-text="'+$' + addon.price.toLocaleString()"></span>
+                </div>
+              </template>
+
+              <!-- Extra Seats -->
+              <div class="flex items-center justify-between py-3 px-4 rounded-xl">
+                <div class="flex items-baseline gap-2">
+                  <span class="text-sm font-light">Extra Seats</span>
+                  <span class="text-xs text-secondary-400 dark:text-secondary-300">$200 / seat</span>
+                </div>
+                <div class="flex items-center gap-3">
+                  <button class="w-7 h-7 rounded-lg text-sm text-secondary-400 dark:text-secondary-300 hover:text-secondary-900 dark:hover:text-white hover:bg-secondary-100 dark:hover:bg-secondary-700 transition-colors cursor-pointer" @click="extraSeats = Math.max(0, extraSeats - 1)">−</button>
+                  <span class="font-mono text-sm w-5 text-center" x-text="extraSeats"></span>
+                  <button class="w-7 h-7 rounded-lg text-sm text-secondary-400 dark:text-secondary-300 hover:text-secondary-900 dark:hover:text-white hover:bg-secondary-100 dark:hover:bg-secondary-700 transition-colors cursor-pointer" @click="extraSeats++">+</button>
+                </div>
+              </div>
+            </div>
+          </section>
+
+          <div class="h-[2px] bg-secondary-100 dark:bg-secondary-700 rounded-full"></div>
+
+          <!-- Discounts -->
+          <section id="discounts" class="section-5">
+            <label class="block text-xs font-semibold uppercase tracking-[0.12em] mb-5 transition-colors duration-300" :class="activeStep === 'discounts' ? 'text-secondary-900 dark:text-white' : 'text-secondary-400 dark:text-secondary-300'">Discounts</label>
+            <div class="flex items-center justify-between py-3 px-4 rounded-xl bg-secondary-50 dark:bg-secondary-800">
+              <div class="flex items-center gap-3">
+                <span class="font-mono text-xs font-semibold text-warning-400 bg-white dark:bg-secondary-700 px-2 py-0.5 rounded border border-secondary-100 dark:border-secondary-600">−15%</span>
+                <span class="text-sm font-light">Emerging Market Discount</span>
+              </div>
+              <div class="relative">
+                <select
+                  x-model="selectedCountry"
+                  class="appearance-none text-xs font-sans py-1.5 pl-2.5 pr-7 border border-secondary-100 dark:border-secondary-600 rounded-lg bg-white dark:bg-secondary-700 text-secondary-800 dark:text-secondary-100 cursor-pointer outline-none focus:border-success-500 transition-colors"
+                >
+                  <option value="">Select country</option>
+                  <option value="UAE">🇦🇪 UAE</option>
+                  <option value="Indonesia">🇮🇩 Indonesia</option>
+                  <option value="India">🇮🇳 India</option>
+                  <option value="Brazil">🇧🇷 Brazil</option>
+                  <option value="Mexico">🇲🇽 Mexico</option>
+                </select>
+                <span class="absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none text-[0.6rem] text-secondary-400 dark:text-secondary-300">▾</span>
+              </div>
+            </div>
+          </section>
+
+          <!-- CTA -->
+          <section>
+            <p class="text-sm font-light text-secondary-400 dark:text-secondary-300">
+              Need a custom solution?
+              <button class="text-success-500 hover:text-success-600 transition-colors underline underline-offset-4 decoration-dashed cursor-pointer" @click="showChat = true">Talk to sales →</button>
+            </p>
+          </section>
+
+        </div>
+        <!-- ── END MAIN COLUMN ── -->
+
+        <!-- ── SIDEBAR ── -->
+        <aside class="sticky top-8 hidden lg:block sidebar-anim">
+          <div class="mb-8">
+            <p class="text-xs font-semibold uppercase tracking-[0.12em] text-secondary-400 dark:text-secondary-300 mb-2">Total estimate</p>
+            <div class="font-mono text-[3rem] font-semibold leading-none text-secondary-900 dark:text-white" x-text="'$' + displayTotal.toLocaleString()"></div>
+            <p class="text-xs text-secondary-400 dark:text-secondary-300 mt-2" x-show="discountAmount > 0">
+              After <span class="text-success-500 font-medium" x-text="'$' + discountAmount.toLocaleString()"></span> discount applied
+            </p>
+          </div>
+
+          <div class="h-px bg-secondary-100 dark:bg-secondary-700 mb-6"></div>
+
+          <div class="space-y-3 mb-8 text-sm">
+            <div class="flex justify-between">
+              <span class="font-light text-secondary-400 dark:text-secondary-300 flex items-center gap-1.5">
+                Plan
+                <span
+                  class="inline-flex items-center justify-center w-3.5 h-3.5 rounded-full bg-secondary-100 dark:bg-secondary-700 text-[0.65rem] text-secondary-400 font-bold cursor-help relative"
+                  x-data="{ show: false }"
+                  @mouseenter="show = true" @mouseleave="show = false"
+                >
+                  ?
+                  <span x-show="show" x-transition class="absolute bottom-[calc(100%+6px)] left-1/2 -translate-x-1/2 bg-secondary-900 dark:bg-secondary-600 text-white px-3 py-1.5 rounded-lg text-[0.72rem] font-normal whitespace-nowrap shadow-lg z-10">Selected plan cost</span>
+                </span>
+              </span>
+              <span class="font-mono font-medium" x-text="'$' + planPrice.toLocaleString()"></span>
+            </div>
+            <div class="flex justify-between">
+              <span class="font-light text-secondary-400 dark:text-secondary-300">Add-ons</span>
+              <span class="font-mono font-medium" x-text="'$' + addonsTotal.toLocaleString()"></span>
+            </div>
+            <div class="flex justify-between" x-show="discountAmount > 0">
+              <span class="font-light text-secondary-400 dark:text-secondary-300">Discount</span>
+              <span class="font-mono font-medium text-success-500" x-text="'−$' + discountAmount.toLocaleString()"></span>
+            </div>
+          </div>
+
+          <div class="space-y-2.5">
+            <button
+              class="w-full py-3 px-5 rounded-xl bg-secondary-900 dark:bg-white text-white dark:text-secondary-900 text-sm font-semibold hover:opacity-90 transition-opacity cursor-pointer"
+              @click="showShare = true"
+            >Save &amp; Share</button>
+            <button
+              class="w-full py-3 px-5 rounded-xl text-sm font-light text-secondary-400 dark:text-secondary-300 hover:text-secondary-900 dark:hover:text-white transition-colors cursor-pointer text-center"
+              @click="showComparison = true"
+            >Compare plans →</button>
+          </div>
+        </aside>
+        <!-- ── END SIDEBAR ── -->
+
+      </div>
+    </div>
+
+    <!-- ── MOBILE STICKY BAR ── -->
+    <div class="fixed bottom-0 left-0 right-0 bg-white dark:bg-secondary-900 border-t border-secondary-100 dark:border-secondary-700 px-6 py-4 flex items-center justify-between z-50 lg:hidden">
+      <div>
+        <p class="text-[0.7rem] text-secondary-400 dark:text-secondary-300 uppercase tracking-[0.1em]">Total</p>
+        <p class="font-mono font-semibold text-[1.25rem] leading-tight" x-text="'$' + displayTotal.toLocaleString()"></p>
+      </div>
+      <button class="py-2.5 px-5 rounded-xl bg-secondary-900 dark:bg-white text-white dark:text-secondary-900 text-sm font-semibold cursor-pointer" @click="showMobileSheet = true">View Summary</button>
+    </div>
+
+    <!-- ── MODAL: Save & Share ── -->
+    <template x-if="showShare">
+      <div class="fixed inset-0 bg-[rgba(10,14,20,0.5)] flex items-center justify-center z-[100] p-6" style="animation:fadeIn .2s ease" @click.self="showShare = false">
+        <div class="bg-white dark:bg-secondary-800 rounded-2xl shadow-xl max-w-[440px] w-full p-8" style="animation:slideUp .25s ease">
+          <div class="flex justify-between items-center mb-5">
+            <h3 class="font-semibold text-secondary-900 dark:text-white">Save &amp; Share</h3>
+            <button class="w-7 h-7 rounded-lg text-secondary-400 dark:text-secondary-300 hover:bg-secondary-100 dark:hover:bg-secondary-700 hover:text-secondary-900 dark:hover:text-white transition-all flex items-center justify-center cursor-pointer text-sm" @click="showShare = false">✕</button>
+          </div>
+          <p class="text-sm font-light text-secondary-400 dark:text-secondary-300 mb-4">Share this quote with your team via the link below.</p>
+          <div class="flex gap-2">
+            <input class="flex-1 font-mono text-xs px-3 py-2.5 border border-secondary-100 dark:border-secondary-600 rounded-lg bg-secondary-50 dark:bg-secondary-700 text-secondary-800 dark:text-secondary-100 outline-none focus:border-success-500 transition-colors" readonly value="eventpricing.com/share/your-quote" @click="$event.target.select()" />
+            <button class="px-4 py-2.5 bg-secondary-900 dark:bg-white text-white dark:text-secondary-900 rounded-lg font-semibold text-xs hover:opacity-85 transition-opacity whitespace-nowrap cursor-pointer" x-data="{ copied: false }" @click="copied = true; navigator.clipboard.writeText('eventpricing.com/share/your-quote'); setTimeout(() => copied = false, 2000)" x-text="copied ? 'Copied!' : 'Copy'"></button>
+          </div>
+        </div>
+      </div>
+    </template>
+
+    <!-- ── SLIDEOVER: Plan Comparison ── -->
+    <template x-if="showComparison">
+      <div>
+        <div class="fixed inset-0 bg-[rgba(10,14,20,0.5)] z-[100]" style="animation:fadeIn .2s ease" @click="showComparison = false"></div>
+        <div class="fixed top-0 right-0 w-[400px] max-w-[90vw] h-full bg-white dark:bg-secondary-800 z-[101] p-8 overflow-y-auto" style="animation:slideIn .3s ease">
+          <div class="flex justify-between items-center mb-8">
+            <h3 class="font-semibold text-secondary-900 dark:text-white">Plan Comparison</h3>
+            <button class="w-7 h-7 rounded-lg text-secondary-400 dark:text-secondary-300 hover:bg-secondary-100 dark:hover:bg-secondary-700 hover:text-secondary-900 dark:hover:text-white transition-all flex items-center justify-center cursor-pointer text-sm" @click="showComparison = false">✕</button>
+          </div>
+          <div class="grid text-xs font-semibold uppercase tracking-[0.1em] text-secondary-400 dark:text-secondary-300 pb-3 border-b border-secondary-100 dark:border-secondary-700" style="grid-template-columns:1fr 72px 72px">
+            <span>Feature</span><span class="text-center">Prem.</span><span class="text-center">Start.</span>
+          </div>
+          <template x-for="f in features" :key="f.name">
+            <div class="grid py-3 border-b border-secondary-50 dark:border-secondary-700 text-sm" style="grid-template-columns:1fr 72px 72px">
+              <span class="font-light" x-text="f.name"></span>
+              <span class="text-center">
+                <span x-show="f.premium === true"  class="text-success-500 font-bold">✓</span>
+                <span x-show="f.premium === false" class="text-secondary-200 dark:text-secondary-700">—</span>
+                <span x-show="typeof f.premium === 'string'" class="text-sm text-secondary-400 dark:text-secondary-300" x-text="f.premium"></span>
+              </span>
+              <span class="text-center">
+                <span x-show="f.starter === true"  class="text-success-500 font-bold">✓</span>
+                <span x-show="f.starter === false" class="text-secondary-200 dark:text-secondary-700">—</span>
+                <span x-show="typeof f.starter === 'string'" class="text-sm text-secondary-400 dark:text-secondary-300" x-text="f.starter"></span>
+              </span>
+            </div>
+          </template>
+        </div>
+      </div>
+    </template>
+
+    <!-- ── BOTTOM SHEET: Mobile Summary ── -->
+    <template x-if="showMobileSheet">
+      <div>
+        <div class="fixed inset-0 bg-[rgba(10,14,20,0.5)] z-[100]" style="animation:fadeIn .2s ease" @click="showMobileSheet = false"></div>
+        <div class="fixed bottom-0 left-0 right-0 bg-white dark:bg-secondary-800 rounded-[20px_20px_0_0] z-[101] p-6 max-h-[70vh] overflow-y-auto" style="animation:sheetUp .3s ease">
+          <div class="w-8 h-1 bg-secondary-100 dark:bg-secondary-600 rounded-full mx-auto mb-6"></div>
+          <p class="text-[0.7rem] font-semibold uppercase tracking-[0.12em] text-secondary-400 dark:text-secondary-300 mb-1">Total estimate</p>
+          <div class="font-mono text-[2.4rem] font-semibold leading-none text-secondary-900 dark:text-white mb-6" x-text="'$' + totalPrice.toLocaleString()"></div>
+          <div class="space-y-3 mb-5 text-sm">
+            <div class="flex justify-between">
+              <span class="font-light text-secondary-400 dark:text-secondary-300">Plan (<span x-text="selectedPlan"></span>)</span>
+              <span class="font-mono" x-text="'$' + planPrice.toLocaleString()"></span>
+            </div>
+            <div class="flex justify-between">
+              <span class="font-light text-secondary-400 dark:text-secondary-300">Add-ons</span>
+              <span class="font-mono" x-text="'$' + addonsTotal.toLocaleString()"></span>
+            </div>
+            <div class="flex justify-between" x-show="discountAmount > 0">
+              <span class="font-light text-secondary-400 dark:text-secondary-300">Discount</span>
+              <span class="font-mono text-success-500" x-text="'−$' + discountAmount.toLocaleString()"></span>
+            </div>
+          </div>
+          <div class="h-px bg-secondary-100 dark:bg-secondary-700 mb-5"></div>
+          <div class="space-y-2.5">
+            <button class="w-full py-3 rounded-xl bg-secondary-900 dark:bg-white text-white dark:text-secondary-900 text-sm font-semibold cursor-pointer" @click="showMobileSheet = false; showShare = true">Save &amp; Share</button>
+            <button class="w-full py-3 rounded-xl text-sm font-light text-secondary-400 dark:text-secondary-300 cursor-pointer" @click="showMobileSheet = false">Close</button>
+          </div>
+        </div>
+      </div>
+    </template>
+
+    <!-- ── MODAL: Chat to Sales ── -->
+    <template x-if="showChat">
+      <div class="fixed inset-0 bg-[rgba(10,14,20,0.5)] flex items-center justify-center z-[100] p-6" style="animation:fadeIn .2s ease" @click.self="showChat = false">
+        <div class="bg-white dark:bg-secondary-800 rounded-2xl shadow-xl max-w-[440px] w-full p-8" style="animation:slideUp .25s ease">
+          <div class="flex justify-between items-center mb-5">
+            <h3 class="font-semibold text-secondary-900 dark:text-white">Talk to Sales</h3>
+            <button class="w-7 h-7 rounded-lg text-secondary-400 dark:text-secondary-300 hover:bg-secondary-100 dark:hover:bg-secondary-700 hover:text-secondary-900 dark:hover:text-white transition-all flex items-center justify-center cursor-pointer text-sm" @click="showChat = false">✕</button>
+          </div>
+          <p class="text-sm font-light text-secondary-400 dark:text-secondary-300 mb-5">Leave your email and we'll send you a custom proposal.</p>
+          <input type="email" placeholder="your@email.com" class="w-full px-4 py-3 border border-secondary-100 dark:border-secondary-600 rounded-xl font-sans text-sm mb-3 outline-none focus:border-success-500 bg-white dark:bg-secondary-700 text-secondary-800 dark:text-secondary-100 placeholder:text-secondary-300 dark:placeholder:text-secondary-500 transition-colors" />
+          <textarea placeholder="Tell us about your event..." rows="3" class="w-full px-4 py-3 border border-secondary-100 dark:border-secondary-600 rounded-xl font-sans text-sm resize-y outline-none focus:border-success-500 bg-white dark:bg-secondary-700 text-secondary-800 dark:text-secondary-100 placeholder:text-secondary-300 dark:placeholder:text-secondary-500 transition-colors"></textarea>
+          <button class="w-full mt-4 py-3 rounded-xl bg-secondary-900 dark:bg-white text-white dark:text-secondary-900 text-sm font-semibold hover:opacity-90 transition-opacity cursor-pointer" @click="showChat = false">Send Message</button>
+        </div>
+      </div>
+    </template>
+
+    <script>
+      function calculator() {
+        return {
+          attendees: 1500,
+          selectedPlan: "premium",
+          showFeatures: false,
+          showShare: false,
+          showComparison: false,
+          showMobileSheet: false,
+          showChat: false,
+          selectedCountry: "",
+          extraSeats: 0,
+
+          // Animated counter
+          displayTotal: 6300,
+          _tweenRaf: null,
+
+          // Step progress
+          activeStep: 'attendees',
+          steps: [
+            { id: 'attendees', label: 'Attendees' },
+            { id: 'plan',      label: 'Plan'      },
+            { id: 'addons',    label: 'Add-ons'   },
+            { id: 'discounts', label: 'Discounts' },
+          ],
+          get completedSteps() {
+            const idx = this.steps.findIndex(s => s.id === this.activeStep);
+            return this.steps.slice(0, idx).map(s => s.id);
+          },
+
+          animateTo(target) {
+            if (this._tweenRaf) cancelAnimationFrame(this._tweenRaf);
+            const start = this.displayTotal;
+            const diff  = target - start;
+            if (diff === 0) return;
+            const duration = Math.min(400, Math.abs(diff) * 0.08);
+            const startTime = performance.now();
+            const self = this;
+            function tick(now) {
+              const t = Math.min((now - startTime) / duration, 1);
+              const ease = 1 - Math.pow(1 - t, 3); // ease-out-cubic
+              self.displayTotal = Math.round(start + diff * ease);
+              if (t < 1) self._tweenRaf = requestAnimationFrame(tick);
+            }
+            this._tweenRaf = requestAnimationFrame(tick);
+          },
+
+          _scrollLocked: false,
+          _scrollTimer: null,
+
+          scrollToStep(stepId) {
+            this._scrollLocked = true;
+            this.activeStep = stepId;
+            clearTimeout(this._scrollTimer);
+            document.getElementById(stepId)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            this._scrollTimer = setTimeout(() => { this._scrollLocked = false; }, 800);
+          },
+
+          init() {
+            this.displayTotal = this.totalPrice;
+            this.$watch('totalPrice', val => this.animateTo(val));
+
+            const observer = new IntersectionObserver((entries) => {
+              if (this._scrollLocked) return;
+              entries.forEach(entry => {
+                if (entry.isIntersecting) this.activeStep = entry.target.id;
+              });
+            }, { threshold: 0, rootMargin: '-40% 0px -40% 0px' });
+
+            this.$nextTick(() => {
+              this.steps.forEach(step => {
+                const el = document.getElementById(step.id);
+                if (el) observer.observe(el);
+              });
+            });
+          },
+
+          addons: [
+            { id: "streaming",    name: "Live Streaming Package",        price: 650, selected: false },
+            { id: "matchmaking",  name: "AI Attendee Matchmaking",       price: 900, selected: false },
+            { id: "lead",         name: "Lead Scanning App (Exhibitor)", price: 400, selected: false },
+            { id: "ondemand",     name: "On-demand Content Library",     price: 500, selected: true  },
+            { id: "push",         name: "Push Notification Campaign",    price: 280, selected: false },
+            { id: "gamification", name: "Gamification Module",           price: 750, selected: false },
+          ],
+
+          features: [
+            { name: "Attendee Cap",                  premium: "Unlimited",      starter: "Up to 2,000"    },
+            { name: "Real-time Analytics Dashboard", premium: true,             starter: "Basic only"     },
+            { name: "Custom Branding & Domain",      premium: true,             starter: false            },
+            { name: "Hybrid Event Support",          premium: true,             starter: false            },
+            { name: "API Access",                    premium: true,             starter: false            },
+            { name: "Email Marketing Tools",         premium: "Full suite",     starter: "Limited"        },
+            { name: "Session Recording",             premium: true,             starter: false            },
+            { name: "Multi-event Management",        premium: true,             starter: false            },
+            { name: "White-labeling",                premium: true,             starter: false            },
+            { name: "Priority Support",              premium: "24/7 Dedicated", starter: "Business hours" },
+            { name: "SSO Login",                     premium: true,             starter: false            },
+            { name: "CRM Integration",               premium: true,             starter: false            },
+          ],
+
+          get planPrice()      { return this.selectedPlan === "premium" ? 5800 : 2400; },
+          get addonsTotal()    {
+            const base = this.addons.filter(a => a.selected).reduce((sum, a) => sum + a.price, 0);
+            return base + this.extraSeats * 200;
+          },
+          get discountAmount() {
+            if (!this.selectedCountry) return 0;
+            return Math.round((this.planPrice + this.addonsTotal) * 0.15);
+          },
+          get totalPrice() { return this.planPrice + this.addonsTotal - this.discountAmount; },
+        };
+      }
+    </script>
+  </body>
+</html>
